@@ -222,6 +222,11 @@ function resetTtsPlayback() {
     // Stop system TTS utterance
     cancelTtsPlay();
 
+    // Stop provider streaming playback if supported
+    if (typeof ttsProvider?.stopStreaming === 'function') {
+        ttsProvider.stopStreaming();
+    }
+
     // Clear currently processing jobs
     currentTtsJob = null;
     currentAudioJob = null;
