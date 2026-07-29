@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 import FormData from 'form-data';
 import express from 'express';
 
-import { getConfigValue, mergeObjectWithYaml, excludeKeysByYaml, trimV1, delay } from '../util.js';
+import { getConfigValue, mergeObjectWithYaml, excludeKeysByYaml, trimV1, delay, forwardFetchResponse } from '../util.js';
 import { setAdditionalHeaders } from '../additional-headers.js';
 import { readSecret, SECRET_KEYS } from './secrets.js';
 import { POLLINATIONS_ENDPOINT } from '../constants.js';
@@ -769,7 +769,7 @@ const custom = express.Router();
 custom.post('/generate-voice', async (request, response) => {
     try {
         const key = readSecret(request.user.directories, SECRET_KEYS.CUSTOM_OPENAI_TTS);
-        const { input, provider_endpoint, response_format, voice, speed, model } = request.body;
+        const { input, provider_endpoint, response_format, voice, speed, model, stream, retry_badcase } = request.body;
 
         if (!provider_endpoint) {
             console.warn('No OpenAI-compatible TTS provider endpoint provided');
@@ -788,6 +788,8 @@ custom.post('/generate-voice', async (request, response) => {
                 voice: voice ?? 'alloy',
                 speed: speed ?? 1,
                 model: model ?? 'tts-1',
+                ...(stream ? { stream_format: 'audio' } : {}),
+                ...(retry_badcase === false ? { options: { retry_badcase: false } } : {}),
             }),
         });
 
@@ -795,6 +797,11 @@ custom.post('/generate-voice', async (request, response) => {
             const text = await result.text();
             console.warn('OpenAI request failed', result.statusText, text);
             return response.status(500).send(text);
+        }
+
+        if (stream) {
+            response.setHeader('Content-Type', result.headers.get('content-type') ?? 'audio/wav');
+            return await forwardFetchResponse(result, response);
         }
 
         const buffer = await result.arrayBuffer();
