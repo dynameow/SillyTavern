@@ -24,8 +24,8 @@ class PCMProcessor extends AudioWorkletProcessor {
                     
                     // Write directly to circular buffer
                     for (let i = 0; i < int16Array.length; i++) {
-                        // Expand buffer if needed
-                        if (this.writeIndex >= this.buffer.length) {
+                        // Expand buffer if full (next write would collide with read pointer)
+                        if ((this.writeIndex + 1) % this.buffer.length === this.readIndex) {
                             const newBuffer = new Float32Array(this.buffer.length * 2);
                             // Copy existing data maintaining order
                             let sourceIndex = this.readIndex;
