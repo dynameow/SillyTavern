@@ -710,6 +710,16 @@ async function processTtsQueue() {
         text = await ttsProvider.processText(text);
     }
 
+    // Translate text before narration (uses the Translate extension's configured provider/language)
+    // Applied after filters so only the text that will actually be narrated is translated
+    if (extension_settings.tts.translate_before_narrate && typeof globalThis.translate === 'function') {
+        try {
+            text = await globalThis.translate(text);
+        } catch (error) {
+            console.error('TTS: Failed to translate text before narration', error);
+        }
+    }
+
     // Collapse newlines and spaces into single space
     text = text.replace(/\s+/g, ' ').trim();
 
@@ -884,6 +894,7 @@ function loadSettings() {
     $('#tts_periodic_auto_generation').prop('checked', extension_settings.tts.periodic_auto_generation);
     $('#tts_narrate_by_paragraphs').prop('checked', extension_settings.tts.narrate_by_paragraphs);
     $('#tts_narrate_translated_only').prop('checked', extension_settings.tts.narrate_translated_only);
+    $('#tts_translate_before_narrate').prop('checked', extension_settings.tts.translate_before_narrate);
     $('#tts_narrate_user').prop('checked', extension_settings.tts.narrate_user);
     $('#tts_pass_asterisks').prop('checked', extension_settings.tts.pass_asterisks);
     $('#tts_skip_codeblocks').prop('checked', extension_settings.tts.skip_codeblocks);
@@ -910,6 +921,7 @@ const defaultSettings = {
     multi_voice_enabled: false,
     apply_regex: false,
     regex_pattern: '',
+    translate_before_narrate: false,
 };
 
 function setTtsStatus(status, success) {
@@ -984,6 +996,11 @@ function onNarrateQuotedClick() {
 
 function onNarrateTranslatedOnlyClick() {
     extension_settings.tts.narrate_translated_only = !!$('#tts_narrate_translated_only').prop('checked');
+    saveSettingsDebounced();
+}
+
+function onTranslateBeforeNarrateClick() {
+    extension_settings.tts.translate_before_narrate = !!$('#tts_translate_before_narrate').prop('checked');
     saveSettingsDebounced();
 }
 
@@ -1170,7 +1187,7 @@ async function onMessageEvent(messageId, lastCharIndex) {
     }
 
     // Don't generate if message doesn't have a display text
-    if (extension_settings.tts.narrate_translated_only && !(message?.extra?.display_text)) {
+    if (extension_settings.tts.narrate_translated_only && !extension_settings.tts.translate_before_narrate && !(message?.extra?.display_text)) {
         return;
     }
 
@@ -1540,6 +1557,7 @@ export async function init() {
         $('#tts_narrate_dialogues').on('click', onNarrateDialoguesClick);
         $('#tts_narrate_quoted').on('click', onNarrateQuotedClick);
         $('#tts_narrate_translated_only').on('click', onNarrateTranslatedOnlyClick);
+        $('#tts_translate_before_narrate').on('click', onTranslateBeforeNarrateClick);
         $('#tts_skip_codeblocks').on('click', onSkipCodeblocksClick);
         $('#tts_skip_tags').on('click', onSkipTagsClick);
         $('#tts_pass_asterisks').on('click', onPassAsterisksClick);
