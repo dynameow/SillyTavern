@@ -675,15 +675,6 @@ async function processTtsQueue() {
     // Process unsegmented job (first time processing)
     let text = extension_settings.tts.narrate_translated_only ? (currentTtsJob?.extra?.display_text || currentTtsJob.mes) : currentTtsJob.mes;
 
-    // Translate text before narration (uses the Translate extension's configured provider/language)
-    if (extension_settings.tts.translate_before_narrate && typeof globalThis.translate === 'function') {
-        try {
-            text = await globalThis.translate(text);
-        } catch (error) {
-            console.error('TTS: Failed to translate text before narration', error);
-        }
-    }
-
     // Substitute macros
     text = substituteParams(text);
 
@@ -722,6 +713,16 @@ async function processTtsQueue() {
 
     if (typeof ttsProvider?.processText === 'function') {
         text = await ttsProvider.processText(text);
+    }
+
+    // Translate text before narration (uses the Translate extension's configured provider/language)
+    // Applied after filters so only the text that will actually be narrated is translated
+    if (extension_settings.tts.translate_before_narrate && typeof globalThis.translate === 'function') {
+        try {
+            text = await globalThis.translate(text);
+        } catch (error) {
+            console.error('TTS: Failed to translate text before narration', error);
+        }
     }
 
     // Collapse newlines and spaces into single space
