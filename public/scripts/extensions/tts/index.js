@@ -717,12 +717,8 @@ async function processTtsQueue() {
 
     // Translate text before narration (uses the Translate extension's configured provider/language)
     // Applied after filters so only the text that will actually be narrated is translated
-    if (extension_settings.tts.translate_before_narrate && typeof globalThis.translate === 'function') {
-        try {
-            text = await globalThis.translate(text);
-        } catch (error) {
-            console.error('TTS: Failed to translate text before narration', error);
-        }
+    if (extension_settings.tts.translate_before_narrate) {
+        text = await translateForNarration(text);
     }
 
     // Collapse newlines and spaces into single space
@@ -900,6 +896,8 @@ function loadSettings() {
     $('#tts_narrate_by_paragraphs').prop('checked', extension_settings.tts.narrate_by_paragraphs);
     $('#tts_narrate_translated_only').prop('checked', extension_settings.tts.narrate_translated_only);
     $('#tts_translate_before_narrate').prop('checked', extension_settings.tts.translate_before_narrate);
+    $('#tts_translate_provider').val(extension_settings.tts.translate_provider ?? 'builtin');
+    $('#tts_translate_provider_block').toggle(!!extension_settings.tts.translate_before_narrate);
     $('#tts_narrate_user').prop('checked', extension_settings.tts.narrate_user);
     $('#tts_pass_asterisks').prop('checked', extension_settings.tts.pass_asterisks);
     $('#tts_skip_codeblocks').prop('checked', extension_settings.tts.skip_codeblocks);
@@ -927,6 +925,7 @@ const defaultSettings = {
     apply_regex: false,
     regex_pattern: '',
     translate_before_narrate: false,
+    translate_provider: 'builtin',
 };
 
 function setTtsStatus(status, success) {
@@ -1006,7 +1005,44 @@ function onNarrateTranslatedOnlyClick() {
 
 function onTranslateBeforeNarrateClick() {
     extension_settings.tts.translate_before_narrate = !!$('#tts_translate_before_narrate').prop('checked');
+    $('#tts_translate_provider_block').toggle(extension_settings.tts.translate_before_narrate);
     saveSettingsDebounced();
+}
+
+function onTranslateProviderChange() {
+    extension_settings.tts.translate_provider = String($('#tts_translate_provider').val());
+    saveSettingsDebounced();
+}
+
+/**
+ * Translates the text before narration using the configured translation provider.
+ * @param {string} text Text to translate
+ * @returns {Promise<string>} Translated text, or the original text on failure
+ */
+async function translateForNarration(text) {
+    try {
+        if (extension_settings.tts.translate_provider === 'magic') {
+            const command = SlashCommandParser.commands['magic-translate-text'];
+
+            if (!command) {
+                console.warn('TTS: Magic Translation extension is not installed or not loaded');
+                return text;
+            }
+
+            const result = await command.callback({}, text);
+            return typeof result === 'string' && result.trim() ? result : text;
+        }
+
+        if (typeof globalThis.translate === 'function') {
+            return await globalThis.translate(text);
+        }
+
+        console.warn('TTS: Translate extension is not available');
+    } catch (error) {
+        console.error('TTS: Failed to translate text before narration', error);
+    }
+
+    return text;
 }
 
 function onSkipCodeblocksClick() {
@@ -1563,6 +1599,7 @@ export async function init() {
         $('#tts_narrate_quoted').on('click', onNarrateQuotedClick);
         $('#tts_narrate_translated_only').on('click', onNarrateTranslatedOnlyClick);
         $('#tts_translate_before_narrate').on('click', onTranslateBeforeNarrateClick);
+        $('#tts_translate_provider').on('change', onTranslateProviderChange);
         $('#tts_skip_codeblocks').on('click', onSkipCodeblocksClick);
         $('#tts_skip_tags').on('click', onSkipTagsClick);
         $('#tts_pass_asterisks').on('click', onPassAsterisksClick);

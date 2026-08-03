@@ -51,6 +51,15 @@
                     <input type="checkbox" id="tts_translate_before_narrate">
                     <small data-i18n="Translate before narration">Translate before narration</small>
                 </label>
+                <div id="tts_translate_provider_block" class="flex-container flexFlowColumn marginBot5">
+                    <label for="tts_translate_provider">
+                        <small data-i18n="Translation provider">Translation provider</small>
+                    </label>
+                    <select id="tts_translate_provider" class="text_pole">
+                        <option value="builtin" data-i18n="Translate extension (built-in)">Translate extension (built-in)</option>
+                        <option value="magic" data-i18n="Magic Translation (extension)">Magic Translation (extension)</option>
+                    </select>
+                </div>
                 <label class="checkbox_label" for="tts_skip_codeblocks">
                     <input type="checkbox" id="tts_skip_codeblocks">
                     <small data-i18n="Skip codeblocks">Skip codeblocks</small>
